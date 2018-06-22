@@ -12,7 +12,10 @@ import argparse
 
 ADDRESS = '0.0.0.0'
 PORT = 8000
-API_URL = f'http://{ADDRESS}:{PORT}/api/v1.0/tasks'
+
+API_VERSION = '1.0'
+API_PATH = f'/api/v{API_VERSION}/tasks'
+API_URL = f'http://{ADDRESS}:{PORT}{API_PATH}'
 
 abort = False
 
