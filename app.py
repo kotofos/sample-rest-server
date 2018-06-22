@@ -34,10 +34,10 @@ class TaskType:
 tasks = [
     {
         'id': 1,
-        'payload': 'Buy groceries',
+        'payload': 'sample task',
         'type': 'reverse',
         'status': 'done',
-        'result': 'seircg yub',
+        'result': 'sample task',
     },
 ]
 
