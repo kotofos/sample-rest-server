@@ -89,16 +89,20 @@ def _output_response(msg):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Async task api client')
-    parser.add_argument('-c', '--create', metavar=('TYPE', 'PAYLOAD'), nargs=2,
-                        help='create task')
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument('-c', '--create', metavar=('TYPE', 'PAYLOAD'), nargs=2,
+                       help='create task')
     parser.add_argument('-w', '--wait', action='store_const', const=True,
                         help='wait for task to finish')
-    parser.add_argument('-s', '--status', type=int, metavar='ID',
-                        help='get task status')
-    parser.add_argument('-r', '--result', type=int, metavar='ID',
-                        help='get task result')
+    group.add_argument('-s', '--status', type=int, metavar='ID',
+                       help='get task status')
+    group.add_argument('-r', '--result', type=int, metavar='ID',
+                       help='get task result')
 
     args = parser.parse_args()
+
+    if args.create is None and args.wait is not None:
+        parser.error('--wait can only be set for --create')
 
     client = AsyncTaskClient(args.wait)
 
