@@ -6,17 +6,15 @@ from collections import deque
 from http import HTTPStatus
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
-from flask import Flask, jsonify
-from flask import abort
-from flask import request
+ADDRESS = '0.0.0.0'
+PORT = 8000
 
 API_VERSION = '1.0'
 API_URL = f'/api/v{API_VERSION}/tasks'
 
-TASKS_QUEUE_POLL_TIME_S = 0.1
+TASKS_POLL_PERIOD_S = 0.1
 
 run_thread = True
-app = Flask(__name__)
 
 
 class TaskStatus:
@@ -137,79 +135,89 @@ class RestHTTPRequestHandler(BaseHTTPRequestHandler):
         self.wfile.write(json.dumps(data).encode())
 
 
-def create_task():
-    if not request.json or 'payload' not in request.json:
-        abort(400)
-    task = {
-        'id': tasks[-1]['id'] + 1,
-        'payload': request.json['payload'],
-        'type': request.json.get('type', ''),
-        'status': TaskStatus.queued,
-        'result': None,
-    }
-    tasks.append(task)
-    tasks_queue.appendleft(task)
-    return jsonify({'task': task}), 201
-
-
 def handle_tasks():
+    processor = TasksProcessor(TASKS_POLL_PERIOD_S)
     while run_thread:
+        processor.process_queue()
+
+
+class TasksProcessor:
+    def __init__(self, poll_time_s):
+        self.poll_time_s = poll_time_s
+
+    def process_queue(self):
         try:
             task = tasks_queue.pop()
         except IndexError:
-            time.sleep(TASKS_QUEUE_POLL_TIME_S)
-            continue
+            time.sleep(self.poll_time_s)
+            return
             # todo or use cond var/event
 
-        process_task(task)
+        self.process_task(task)
 
+    def process_task(self, task):
+        task['status'] = TaskStatus.running
 
-def process_task(task):
-    task['status'] = TaskStatus.running
+        if task['type'] == TaskType.reverse:
+            time.sleep(TaskType.reverse_time)
+            task['result'] = self.reverse_string(task['payload'])
 
-    if task['type'] == TaskType.reverse:
-        time.sleep(TaskType.reverse_time)
-        task['result'] = reverse_string(task['payload'])
+        elif task['type'] == TaskType.mix_even:
+            time.sleep(TaskType.mix_even_time)
+            task['result'] = self.mix_even((task['payload']))
 
-    elif task['type'] == TaskType.mix_even:
-        time.sleep(TaskType.mix_even_time)
-        task['result'] = mix_even((task['payload']))
+        else:
+            task['status'] = TaskStatus.error
+            return
 
-    else:
-        task['status'] = TaskStatus.error
-        return
+        task['status'] = TaskStatus.done
 
-    task['status'] = TaskStatus.done
+    def reverse_string(self, data):
+        return data[::-1]
 
-
-def reverse_string(data):
-    return data[::-1]
-
-
-def mix_even(data):
-    mixed = []
-    i = 0
-    while i < len(data):
-        if i == len(data) - 1:
+    def mix_even(self, data):
+        mixed = []
+        i = 0
+        while i < len(data):
+            if i == len(data) - 1:
+                mixed.append(data[i])
+                break
+            mixed.append(data[i + 1])
             mixed.append(data[i])
-            break
-        mixed.append(data[i + 1])
-        mixed.append(data[i])
-        i += 2
-    return ''.join(mixed)
+            i += 2
+        return ''.join(mixed)
+
+
+class App:
+    def __init__(self, addr, port):
+        self.address = addr
+        self.port = port
+
+    def run(self):
+        t = self.start_thread()
+        self.run_server()
+        self.stop_thread(t)
+
+    def start_thread(self):
+        t = threading.Thread(target=handle_tasks)
+        t.daemon = True
+        t.start()
+        return t
+
+    def stop_thread(self, t):
+        global run_thread
+        run_thread = False
+        t.join()
+
+    def run_server(self):
+        httpd = HTTPServer((self.address, self.port), RestHTTPRequestHandler)
+        try:
+            httpd.serve_forever()
+        except KeyboardInterrupt:
+            pass
+        httpd.server_close()
 
 
 if __name__ == '__main__':
-    t_ = threading.Thread(target=handle_tasks)
-    t_.daemon = True
-    t_.start()
-
-    httpd = HTTPServer(('0.0.0.0', 8000), RestHTTPRequestHandler)
-    try:
-        httpd.serve_forever()
-    except KeyboardInterrupt:
-        pass
-    httpd.server_close()
-
-    run_thread = False
-    t_.join()
+    app = App(ADDRESS, PORT)
+    app.run()
