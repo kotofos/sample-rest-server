@@ -44,7 +44,7 @@ tasks = [
 tasks_queue = deque()
 
 
-class RestHTTPRequestHandler(BaseHTTPRequestHandler):
+class RestJsonHTTPRequestHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         if not self.path.startswith(API_URL):
             self.abort_not_found()
@@ -123,7 +123,6 @@ class RestHTTPRequestHandler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def abort_not_found(self):
-        self.send_end_response(HTTPStatus.NOT_FOUND)
         self.send_json_data({'error': 'Not found'}, HTTPStatus.NOT_FOUND)
 
     def abort_bad_request(self):
@@ -210,7 +209,8 @@ class App:
         t.join()
 
     def run_server(self):
-        httpd = HTTPServer((self.address, self.port), RestHTTPRequestHandler)
+        httpd = HTTPServer((self.address, self.port),
+                           RestJsonHTTPRequestHandler)
         try:
             httpd.serve_forever()
         except KeyboardInterrupt:
