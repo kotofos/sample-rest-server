@@ -1,4 +1,3 @@
-# todo unit tests
 # todo docstring
 # todo type hints
 # todo logging
@@ -29,7 +28,7 @@ signal.signal(signal.SIGINT, signal_handler)
 
 
 class AsyncTaskClient:
-    def __init__(self, batch_mode):
+    def __init__(self, batch_mode=False):
         self.batch_mode = batch_mode
         self.task_id = None
 
@@ -40,26 +39,26 @@ class AsyncTaskClient:
         }
         r = requests.post(API_URL, json=data)
         r.raise_for_status()
-        print(r.text)
+        _output_responce(r.text)
         data = r.json()
 
         tid = data['task']['id']
         self.task_id = tid
 
         if not self.batch_mode:
-            self._output_responce(data)
+            _output_responce(data)
         else:
-            self._output_responce(f'task id {tid}')
+            _output_responce(f'task id {tid}')
         return tid
 
-    def wait_for_result(self):
+    def wait_for_result(self, task_id):
         while not abort:
-            status = self.get_status(self.task_id)
+            status = self.get_status(task_id)
             if status:
                 break
             time.sleep(1)
         else:
-            self._output_responce('aborted')
+            _output_responce('aborted')
             sys.exit(0)
 
         self.get_result(self.task_id)
@@ -69,9 +68,9 @@ class AsyncTaskClient:
         r.raise_for_status()
         data = r.json()
         if not self.batch_mode:
-            self._output_responce(data)
+            _output_responce(data)
         else:
-            self._output_responce(data['task']['status'])
+            _output_responce(data['task']['status'])
 
         return data['task']['status'] == 'done'
 
@@ -79,12 +78,13 @@ class AsyncTaskClient:
         r = requests.get(API_URL + f'/{task_id}/result')
         r.raise_for_status()
         data = r.json()
-        self._output_responce(data)
+        _output_responce(data)
         return data['task']['result']
 
-    def _output_responce(self, *args, **kwargs):
-        # todo alternative output methods
-        print(*args, **kwargs)
+
+def _output_responce(msg):
+    # todo alternative output methods
+    print(msg)
 
 
 if __name__ == '__main__':
@@ -103,13 +103,16 @@ if __name__ == '__main__':
     client = AsyncTaskClient(args.wait)
 
     # todo do not mix args
-    if args.create is not None:
-        client.create_task(*args.create)
-        if args.wait:
-            client.wait_for_result()
+    try:
+        if args.create is not None:
+            tid = client.create_task(*args.create)
+            if args.wait:
+                client.wait_for_result(tid)
 
-    elif args.status is not None:
-        client.get_status(args.status)
+        elif args.status is not None:
+            client.get_status(args.status)
 
-    elif args.result is not None:
-        client.get_result(args.result)
+        elif args.result is not None:
+            client.get_result(args.result)
+    except requests.exceptions.HTTPError as e:
+        _output_responce(e)
