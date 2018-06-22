@@ -10,7 +10,10 @@ class TestClient(unittest.TestCase):
 
     def setUp(self):
         self.client = AsyncTaskClient()
-        client._output_responce = lambda i:i
+
+        def nop(arg):
+            pass
+        client._output_response = nop
 
     def test_get_result_none(self):
         def my_mock(url, request):

@@ -40,7 +40,7 @@ class TestTaskProcessor(unittest.TestCase):
         assert len(app.tasks_queue) == 0
         assert task['result'] == '2143'
 
-    def test_task_mix_even_even(self):
+    def test_task_mix_even_odd(self):
         app.TaskType.mix_even_time = 0
         task = {
             'id': 1,
@@ -83,7 +83,7 @@ class MockServer:
 
 # todo use mock instead
 class TestHTTPHandler(app.RestJsonHTTPRequestHandler):
-    def log_message(self, format, *args):
+    def log_message(self, format_, *args):
         global output_msg
         output_msg = args
 

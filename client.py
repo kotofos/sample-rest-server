@@ -39,16 +39,16 @@ class AsyncTaskClient:
         }
         r = requests.post(API_URL, json=data)
         r.raise_for_status()
-        _output_responce(r.text)
+        _output_response(r.text)
         data = r.json()
 
         tid = data['task']['id']
         self.task_id = tid
 
         if not self.batch_mode:
-            _output_responce(data)
+            _output_response(data)
         else:
-            _output_responce(f'task id {tid}')
+            _output_response(f'task id {tid}')
         return tid
 
     def wait_for_result(self, task_id):
@@ -58,7 +58,7 @@ class AsyncTaskClient:
                 break
             time.sleep(1)
         else:
-            _output_responce('aborted')
+            _output_response('aborted')
             sys.exit(0)
 
         self.get_result(self.task_id)
@@ -68,9 +68,9 @@ class AsyncTaskClient:
         r.raise_for_status()
         data = r.json()
         if not self.batch_mode:
-            _output_responce(data)
+            _output_response(data)
         else:
-            _output_responce(data['task']['status'])
+            _output_response(data['task']['status'])
 
         return data['task']['status'] == 'done'
 
@@ -78,11 +78,11 @@ class AsyncTaskClient:
         r = requests.get(API_URL + f'/{task_id}/result')
         r.raise_for_status()
         data = r.json()
-        _output_responce(data)
+        _output_response(data)
         return data['task']['result']
 
 
-def _output_responce(msg):
+def _output_response(msg):
     # todo alternative output methods
     print(msg)
 
@@ -115,4 +115,4 @@ if __name__ == '__main__':
         elif args.result is not None:
             client.get_result(args.result)
     except requests.exceptions.HTTPError as e:
-        _output_responce(e)
+        _output_response(e)
