@@ -81,6 +81,7 @@ class MockServer:
         handler = Handler(MockRequest(data), ip_port, self)
 
 
+# todo use mock instead
 class TestHTTPHandler(app.RestJsonHTTPRequestHandler):
     def log_message(self, format, *args):
         global output_msg
