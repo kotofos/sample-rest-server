@@ -15,6 +15,8 @@ API_URL = f'/api/v{API_VERSION}/tasks'
 TASKS_POLL_PERIOD_S = 0.1
 
 run_thread = True
+cond_new_task = threading.Condition()
+tasks_queue = deque()
 
 
 class TaskStatus:
@@ -113,6 +115,8 @@ class RestJsonHTTPRequestHandler(BaseHTTPRequestHandler):
 
         tasks.append(task)
         tasks_queue.appendleft(task)
+        with cond_new_task:
+            cond_new_task.notify_all()
 
         self._send_json_data({'task': task}, status=HTTPStatus.CREATED)
         return
@@ -137,7 +141,8 @@ class RestJsonHTTPRequestHandler(BaseHTTPRequestHandler):
 def handle_tasks():
     processor = TasksProcessor(TASKS_POLL_PERIOD_S)
     while run_thread:
-        processor.process_queue()
+        while run_thread:
+            processor.process_queue()
 
 
 class TasksProcessor:
@@ -145,13 +150,11 @@ class TasksProcessor:
         self.poll_time_s = poll_time_s
 
     def process_queue(self):
-        try:
+        with cond_new_task:
+            cond_new_task.wait(self.poll_time_s)
+            if not tasks_queue:
+                return
             task = tasks_queue.pop()
-        except IndexError:
-            time.sleep(self.poll_time_s)
-            return
-            # todo or use cond var/event
-
         self.process_task(task)
 
     def process_task(self, task):
@@ -206,6 +209,8 @@ class App:
     def stop_thread(self, t):
         global run_thread
         run_thread = False
+        with cond_new_task:
+            cond_new_task.notify_all()
         t.join()
 
     def run_server(self):

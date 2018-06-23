@@ -19,10 +19,8 @@ class TestTaskProcessor(unittest.TestCase):
             'type': app.TaskType.reverse,
             'payload': '123',
         }
-        app.tasks_queue.append(task)
         t = TasksProcessor(0)
-        t.process_queue()
-        assert len(app.tasks_queue) == 0
+        t.process_task(task)
         assert task['result'] == '321'
 
     def test_task_mix_even_even(self):
@@ -47,9 +45,8 @@ class TestTaskProcessor(unittest.TestCase):
             'type': app.TaskType.mix_even,
             'payload': '123',
         }
-        app.tasks_queue.append(task)
         t = TasksProcessor(0)
-        t.process_queue()
+        t.process_task(task)
         assert task['result'] == '213'
 
     def test_task_bad(self):
@@ -58,9 +55,8 @@ class TestTaskProcessor(unittest.TestCase):
             'type': 'none',
             'payload': '123',
         }
-        app.tasks_queue.append(task)
         t = TasksProcessor(0)
-        t.process_queue()
+        t.process_task(task)
         assert task['status'] == app.TaskStatus.error
         assert 'result' not in task
 
