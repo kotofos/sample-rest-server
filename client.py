@@ -106,7 +106,6 @@ if __name__ == '__main__':
 
     client = AsyncTaskClient(args.wait)
 
-    # todo do not mix args
     try:
         if args.create is not None:
             tid = client.create_task(*args.create)
