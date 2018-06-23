@@ -2,9 +2,13 @@ import json
 import re
 import threading
 import time
+import logging
 from collections import deque
 from http import HTTPStatus
 from http.server import HTTPServer, BaseHTTPRequestHandler
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 ADDRESS = '0.0.0.0'
 PORT = 8000
@@ -42,8 +46,6 @@ tasks = [
         'result': 'sample task',
     },
 ]
-
-tasks_queue = deque()
 
 
 class RestJsonHTTPRequestHandler(BaseHTTPRequestHandler):
@@ -204,6 +206,7 @@ class App:
         t = threading.Thread(target=handle_tasks)
         t.daemon = True
         t.start()
+        logger.info('Task queue started')
         return t
 
     def stop_thread(self, t):
@@ -212,15 +215,18 @@ class App:
         with cond_new_task:
             cond_new_task.notify_all()
         t.join()
+        logger.info('Task queue stopped')
 
     def run_server(self):
         httpd = HTTPServer((self.address, self.port),
                            RestJsonHTTPRequestHandler)
         try:
+            logger.info('Server started')
             httpd.serve_forever()
         except KeyboardInterrupt:
             pass
         httpd.server_close()
+        logger.info('Server stopped')
 
 
 if __name__ == '__main__':
