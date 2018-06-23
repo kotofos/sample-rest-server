@@ -3,6 +3,7 @@ import re
 import threading
 import time
 import logging
+from argparse import ArgumentParser
 from collections import deque
 from http import HTTPStatus
 from http.server import HTTPServer, BaseHTTPRequestHandler
@@ -49,30 +50,11 @@ tasks = [
 
 
 class RestJsonHTTPRequestHandler(BaseHTTPRequestHandler):
-    def do_GET(self):
-        if not self.path.startswith(API_URL):
-            self._abort_not_found()
-            return
+    task_status_pattern = re.compile('/([0-9]+)/status[/]?')
+    task_result_pattern = re.compile('/([0-9]+)/result[/]?')
 
-        sub_path = self.path.replace(API_URL, '', 1)
-        if sub_path == '' or sub_path == '/':
-            self._send_json_data({'tasks': tasks})
-            return
-
-        task_status_pattern = re.compile('/([0-9]+)/status[/]?')
-        task_result_pattern = re.compile('/([0-9]+)/result[/]?')
-
-        task_id_status = task_status_pattern.search(sub_path)
-        if task_id_status:
-            self.get_task_status(task_id_status)
-            return
-
-        task_id_result = task_result_pattern.search(sub_path)
-        if task_id_result:
-            self.get_task_result(task_id_result)
-            return
-
-        self._abort_not_found()
+    def get_tasks_list(self):
+        self._send_json_data({'tasks': tasks})
 
     def get_task_status(self, task_id_match):
         task = self._get_task(task_id_match)
@@ -90,15 +72,7 @@ class RestJsonHTTPRequestHandler(BaseHTTPRequestHandler):
         self._send_json_data(
             {'task': {'id': task['id'], 'result': task['result']}})
 
-    def _get_task(self, task_id_match):
-        task_id = int(task_id_match.group(1))
-        task = list(filter(lambda t: t['id'] == task_id, tasks))
-        if len(task) == 0:
-            self._abort_not_found()
-            return None
-        return task[0]
-
-    def do_POST(self):
+    def post_task(self):
         data_string = self.rfile.read(
             int(self.headers['Content-Length'])).decode()
 
@@ -121,7 +95,39 @@ class RestJsonHTTPRequestHandler(BaseHTTPRequestHandler):
             cond_new_task.notify_all()
 
         self._send_json_data({'task': task}, status=HTTPStatus.CREATED)
-        return
+
+    def do_GET(self):
+        if not self.path.startswith(API_URL):
+            self._abort_not_found()
+            return
+
+        sub_path = self.path.replace(API_URL, '', 1)
+        if sub_path == '' or sub_path == '/':
+            self.get_tasks_list()
+            return
+
+        task_id_status = self.task_status_pattern.search(sub_path)
+        if task_id_status:
+            self.get_task_status(task_id_status)
+            return
+
+        task_id_result = self.task_result_pattern.search(sub_path)
+        if task_id_result:
+            self.get_task_result(task_id_result)
+            return
+
+        self._abort_not_found()
+
+    def do_POST(self):
+        self.post_task()
+
+    def _get_task(self, task_id_match):
+        task_id = int(task_id_match.group(1))
+        task = list(filter(lambda t: t['id'] == task_id, tasks))
+        if len(task) == 0:
+            self._abort_not_found()
+            return None
+        return task[0]
 
     def _send_end_response(self, code):
         self.send_response(code)
@@ -232,5 +238,12 @@ class App:
 
 
 if __name__ == '__main__':
-    app = App(ADDRESS, PORT)
+    parser = ArgumentParser('HTTP REST-JSON API server')
+    parser.add_argument('ip', default=ADDRESS, nargs='?',
+                        help='ip of server')
+    parser.add_argument('port', default=PORT, type=int, nargs='?',
+                        help='port of server')
+    args = parser.parse_args()
+
+    app = App(args.ip, args.port)
     app.run()
