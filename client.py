@@ -14,7 +14,6 @@ PORT = 8000
 
 API_VERSION = '1.0'
 API_PATH = f'/api/v{API_VERSION}/tasks'
-API_URL = f'http://{ADDRESS}:{PORT}{API_PATH}'
 
 abort = False
 
@@ -28,16 +27,17 @@ signal.signal(signal.SIGINT, signal_handler)
 
 
 class AsyncTaskClient:
-    def __init__(self, batch_mode=False):
+    def __init__(self, batch_mode=False, address=ADDRESS, port=PORT):
         self.batch_mode = batch_mode
         self.task_id = None
+        self.api_url = f'http://{address}:{port}{API_PATH}'
 
     def create_task(self, type_, payload):
         data = {
             'type': type_,
             'payload': payload,
         }
-        r = requests.post(API_URL, json=data)
+        r = requests.post(self._url(), json=data)
         r.raise_for_status()
         _output_response(r.text)
         data = r.json()
@@ -64,7 +64,7 @@ class AsyncTaskClient:
         self.get_result(self.task_id)
 
     def get_status(self, task_id):
-        r = requests.get(API_URL + f'/{task_id}/status')
+        r = requests.get(self._url(f'/{task_id}/status'))
         r.raise_for_status()
         data = r.json()
         if not self.batch_mode:
@@ -75,11 +75,14 @@ class AsyncTaskClient:
         return data['task']['status'] == 'done'
 
     def get_result(self, task_id):
-        r = requests.get(API_URL + f'/{task_id}/result')
+        r = requests.get(self._url(f'/{task_id}/result'))
         r.raise_for_status()
         data = r.json()
         _output_response(data)
         return data['task']['result']
+
+    def _url(self, suffix=''):
+        return ''.join((self.api_url, suffix))
 
 
 def _output_response(msg):
@@ -89,6 +92,11 @@ def _output_response(msg):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Async task api client')
+    parser.add_argument('ip', default=ADDRESS, nargs='?',
+                        help='ip of server')
+    parser.add_argument('port', default=PORT, type=int, nargs='?',
+                        help='port of server')
+
     group = parser.add_mutually_exclusive_group()
     group.add_argument('-c', '--create', metavar=('TYPE', 'PAYLOAD'), nargs=2,
                        help='create task')
@@ -104,7 +112,7 @@ if __name__ == '__main__':
     if args.create is None and args.wait is not None:
         parser.error('--wait can only be set for --create')
 
-    client = AsyncTaskClient(args.wait)
+    client = AsyncTaskClient(args.wait, args.ip, args.port)
 
     try:
         if args.create is not None:
