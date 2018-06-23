@@ -161,6 +161,7 @@ class TasksProcessor:
 
     def process_task(self, task):
         task['status'] = TaskStatus.running
+        logging.info(f'Processing task {task["id"]}')
 
         if task['type'] == TaskType.reverse:
             time.sleep(TaskType.reverse_time)
@@ -175,6 +176,7 @@ class TasksProcessor:
             return
 
         task['status'] = TaskStatus.done
+        logging.info(f'Task {task["id"]} processed')
 
     def reverse_string(self, data):
         return data[::-1]
