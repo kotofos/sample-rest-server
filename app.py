@@ -47,12 +47,12 @@ tasks_queue = deque()
 class RestJsonHTTPRequestHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         if not self.path.startswith(API_URL):
-            self.abort_not_found()
+            self._abort_not_found()
             return
 
         sub_path = self.path.replace(API_URL, '', 1)
         if sub_path == '' or sub_path == '/':
-            self.send_json_data({'tasks': tasks})
+            self._send_json_data({'tasks': tasks})
             return
 
         task_status_pattern = re.compile('/([0-9]+)/status[/]?')
@@ -68,21 +68,13 @@ class RestJsonHTTPRequestHandler(BaseHTTPRequestHandler):
             self.get_task_result(task_id_result)
             return
 
-        self.abort_not_found()
-
-    def _get_task(self, task_id_match):
-        task_id = int(task_id_match.group(1))
-        task = list(filter(lambda t: t['id'] == task_id, tasks))
-        if len(task) == 0:
-            self.abort_not_found()
-            return None
-        return task[0]
+        self._abort_not_found()
 
     def get_task_status(self, task_id_match):
         task = self._get_task(task_id_match)
         if not task:
             return
-        self.send_json_data(
+        self._send_json_data(
             {'task': {'id': task['id'], 'status': task['status']}})
 
     def get_task_result(self, task_id_match):
@@ -90,9 +82,17 @@ class RestJsonHTTPRequestHandler(BaseHTTPRequestHandler):
         if not task:
             return
         if task['result'] is None:
-            self.abort_not_found()
-        self.send_json_data(
+            self._abort_not_found()
+        self._send_json_data(
             {'task': {'id': task['id'], 'result': task['result']}})
+
+    def _get_task(self, task_id_match):
+        task_id = int(task_id_match.group(1))
+        task = list(filter(lambda t: t['id'] == task_id, tasks))
+        if len(task) == 0:
+            self._abort_not_found()
+            return None
+        return task[0]
 
     def do_POST(self):
         data_string = self.rfile.read(
@@ -108,29 +108,29 @@ class RestJsonHTTPRequestHandler(BaseHTTPRequestHandler):
                 'result': None,
             }
         except KeyError:
-            self.abort_bad_request()
+            self._abort_bad_request()
             return
 
         tasks.append(task)
         tasks_queue.appendleft(task)
 
-        self.send_json_data({'task': task}, status=HTTPStatus.CREATED)
+        self._send_json_data({'task': task}, status=HTTPStatus.CREATED)
         return
 
-    def send_end_response(self, code):
+    def _send_end_response(self, code):
         self.send_response(code)
         self.send_header('Content-Type', 'application/json')
         self.end_headers()
 
-    def abort_not_found(self):
-        self.send_json_data({'error': 'Not found'}, HTTPStatus.NOT_FOUND)
+    def _abort_not_found(self):
+        self._send_json_data({'error': 'Not found'}, HTTPStatus.NOT_FOUND)
 
-    def abort_bad_request(self):
-        self.send_end_response(HTTPStatus.BAD_REQUEST)
-        self.send_json_data({'error': 'Bad request'}, HTTPStatus.NOT_FOUND)
+    def _abort_bad_request(self):
+        self._send_end_response(HTTPStatus.BAD_REQUEST)
+        self._send_json_data({'error': 'Bad request'}, HTTPStatus.NOT_FOUND)
 
-    def send_json_data(self, data, status=HTTPStatus.OK):
-        self.send_end_response(status)
+    def _send_json_data(self, data, status=HTTPStatus.OK):
+        self._send_end_response(status)
         self.wfile.write(json.dumps(data).encode())
 
 
